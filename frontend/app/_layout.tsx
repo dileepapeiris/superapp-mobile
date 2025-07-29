@@ -27,6 +27,10 @@ import { Provider, useDispatch } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { AppDispatch, persistor, store } from "@/context/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  initializeNotifications,
+  scheduleSessionNotifications,
+} from "@/services/notificationService";
 import { setApps } from "@/context/slices/appSlice";
 import { APPS, USER_INFO } from "@/constants/Constants";
 import { getUserConfigurations } from "@/context/slices/userConfigSlice";
@@ -37,6 +41,7 @@ import SplashModal from "@/components/SplashModal";
 import { performLogout } from "@/utils/performLogout";
 import { lockAsync, OrientationLock } from "expo-screen-orientation";
 import * as SplashScreen from "expo-splash-screen";
+import { Platform } from "react-native";
 
 // Component to handle app initialization
 function AppInitializer({ onReady }: { onReady: () => void }) {
@@ -55,6 +60,10 @@ function AppInitializer({ onReady }: { onReady: () => void }) {
 
         if (savedApps) dispatch(setApps(JSON.parse(savedApps)));
         if (savedUserInfo) dispatch(setUserInfo(JSON.parse(savedUserInfo)));
+
+        // Initialize notifications
+        await initializeNotifications();
+        await scheduleSessionNotifications();
 
         dispatch(getVersions(handleLogout));
         dispatch(getUserConfigurations(handleLogout));

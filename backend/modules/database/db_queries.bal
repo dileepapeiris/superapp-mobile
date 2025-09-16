@@ -15,6 +15,8 @@
 // under the License.
 import ballerina/sql;
 
+configurable int offsetvalue = 10;
+
 # Query to retrieve distinct micro app IDs allowed for the given user groups.
 #
 # + groups - An array of user groups used to filter allowed micro apps
@@ -140,7 +142,7 @@ isolated function getAppConfigsByEmailQuery(string email) returns sql:Parameteri
 # + return - Generated Query to insert/update configurations
 isolated function updateAppConfigsByEmailQuery(string email, string configKey, string configValue, int isActive)
     returns sql:ParameterizedQuery => `
-        INSERT INTO user_config (
+        INSERT INTO user_config (x
             email,
             config_key,
             config_value,
@@ -161,3 +163,29 @@ isolated function updateAppConfigsByEmailQuery(string email, string configKey, s
             config_value = ${configValue},
             active = ${isActive}
 `;
+
+# Query to get FCM tokens for a given email.
+#
+# + emails - Array of user emails to retrieve tokens for
+# + return - Generated query to get FCM tokens from the device_tokens table.
+public isolated function getFCMTokensQuery(string[] emails, int startIndex) returns sql:ParameterizedQuery => sql:queryConcat(`
+    SELECT 
+        fcm_token
+    FROM 
+        device_tokens
+    WHERE
+        email IN (`, sql:arrayFlattenQuery(emails), `) AND active = 1 LIMIT ${offsetvalue} OFFSET ${startIndex}
+`);
+
+# Query to count FCM tokens for a given list of emails.
+#
+# + emails - Array of user emails to count tokens for
+# + return - Generated query to count FCM tokens from the device_tokens table.
+public isolated function countFCMTokensQuery(string[] emails) returns sql:ParameterizedQuery => sql:queryConcat(`
+    SELECT 
+        COUNT(*) as count
+    FROM 
+        device_tokens
+    WHERE
+        email IN (`, sql:arrayFlattenQuery(emails), `) AND active = 1
+`);

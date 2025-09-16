@@ -16,12 +16,13 @@
 import superapp_mobile_service.authorization;
 import superapp_mobile_service.database;
 import superapp_mobile_service.entity;
+import superapp_mobile_service.scim_operations;
 
 import ballerina/http;
 import ballerina/log;
 
 configurable int maxHeaderSize = 16384; // 16KB header size for WSO2 Choreo support
-configurable string[] restrictedAppsForNonLk = ?;
+configurable string[] restrictedAppsForNonLk = [""];
 configurable string lkLocation = "Sri Lanka";
 configurable string mobileAppReviewerEmail = ?; // App store reviewer email
 
@@ -46,11 +47,11 @@ service class ErrorInterceptor {
     }
 }
 
-service http:InterceptableService / on new http:Listener(9090, config = {requestLimits: {maxHeaderSize}}) {
+service / on new http:Listener(9091, config = {requestLimits: {maxHeaderSize}}) {
 
     # + return - authorization:JwtInterceptor, ErrorInterceptor
-    public function createInterceptors() returns http:Interceptor[] =>
-        [new authorization:JwtInterceptor(), new ErrorInterceptor()];
+    // public function createInterceptors() returns http:Interceptor[] =>
+    //     [new authorization:JwtInterceptor(), new ErrorInterceptor()];
 
     # Fetch user information of the logged in users.
     #
@@ -84,7 +85,7 @@ service http:InterceptableService / on new http:Listener(9090, config = {request
 
         return loggedInUser;
     }
-    
+
     # Retrieves the list of micro apps available to the authenticated user.
     #
     # + ctx - Request context
@@ -243,7 +244,7 @@ service http:InterceptableService / on new http:Listener(9090, config = {request
     # + configuration - User's app configurations including downloaded microapps
     # + return - Created response or error
     resource function post users/app\-configs(http:RequestContext ctx,
-        database:AppConfig configuration) returns http:Created|http:InternalServerError|http:BadRequest {
+            database:AppConfig configuration) returns http:Created|http:InternalServerError|http:BadRequest {
 
         authorization:CustomJwtPayload|error userInfo = ctx.getWithType(authorization:HEADER_USER_INFO);
         if userInfo is error {
@@ -277,5 +278,54 @@ service http:InterceptableService / on new http:Listener(9090, config = {request
         }
 
         return http:CREATED;
+    }
+
+    # Retrieves FCM tokens for all members of a specified group with pagination.
+    #
+    # + ctx - Request context
+    # + group - The group filter to search for members (e.g., "app-superapp-developer")
+    # + organization - The organization name to search groups in (defaults to "wso2")
+    # + startIndex - Starting index for pagination (default: 0)
+    # + return - Paginated FCM tokens response or an error.
+    resource function get users/groupFcmTokens(
+            string group,
+            string organization,
+            int startIndex
+    ) returns database:FCMTokenResponse|http:InternalServerError|http:NotFound {
+
+        // authorization:CustomJwtPayload|error userInfo = ctx.getWithType(authorization:HEADER_USER_INFO);
+        // if userInfo is error {
+        //     return <http:InternalServerError>{
+        //         body: {"message": ERR_MSG_USER_HEADER_NOT_FOUND}
+        //     };
+        // }
+
+        string[]|error memberEmails = scim_operations:getGroupMemberEmails(group, organization);
+        if memberEmails is error {
+            string customError = string `Error retrieving members from group: ${group}`;
+            log:printError(customError, memberEmails);
+            return <http:InternalServerError>{
+                body: {"message": customError}
+            };
+        }
+
+        if memberEmails.length() == 0 {
+            string customError = string `No members found in group: ${group}`;
+            log:printError(customError);
+            return <http:NotFound>{
+                body: {"message": customError}
+            };
+        }
+
+        database:FCMTokenResponse|error fcmTokensResponse = database:getFCMTokens(memberEmails, startIndex);
+        if fcmTokensResponse is error {
+            string customError = "Error retrieving FCM tokens for group members";
+            log:printError(customError, fcmTokensResponse);
+            return <http:InternalServerError>{
+                body: {"message": customError}
+            };
+        }
+
+        return fcmTokensResponse;
     }
 }

@@ -118,10 +118,31 @@ public isolated function updateAppConfigsByEmail(string email, AppConfig appConf
     returns ExecutionSuccessResult|error {
 
     sql:ParameterizedQuery query = updateAppConfigsByEmailQuery(
-        email,
-        appConfig.configKey,
-        appConfig.configValue.toJsonString(),
-        appConfig.isActive);
+            email,
+            appConfig.configKey,
+            appConfig.configValue.toJsonString(),
+            appConfig.isActive);
     sql:ExecutionResult result = check databaseClient->execute(query);
     return result.cloneWithType(ExecutionSuccessResult);
+}
+
+# Get FCM tokens for a list of emails with pagination.
+#
+# + emails - Array of user emails to retrieve tokens for
+# + startIndex - Start index for pagination
+# + return - FCMTokenResponse with tokens and pagination info, or an error.
+public isolated function getFCMTokens(string[] emails, int startIndex) returns FCMTokenResponse|error {
+    CountRecord countRecord = check databaseClient->queryRow(countFCMTokensQuery(emails));
+
+    stream<FCMTokenRecord, sql:Error?> tokenStream = databaseClient->query(getFCMTokensQuery(emails, startIndex));
+    string[] tokens = check from FCMTokenRecord tokenRecord in tokenStream
+        where tokenRecord.fcm_token != ""
+        select tokenRecord.fcm_token;
+
+    return {
+        fcm_tokens: tokens,
+        totalResults: countRecord.count,
+        startIndex: startIndex,
+        itemsPerPage: offsetvalue
+    };
 }

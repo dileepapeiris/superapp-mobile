@@ -53,7 +53,7 @@ public type Employee record {
 # Employee data.
 type EmployeeData record {
     # Employee
-    Employee employee;
+    Employee? employee;
 };
 
 # Employee response.

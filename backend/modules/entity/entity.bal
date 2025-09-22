@@ -18,7 +18,7 @@
 #
 # + workEmail - Email of the employee to retrieve
 # + return - Employee with the given email or an error if the employee retrieval is unsuccessful
-public isolated function fetchEmployeesBasicInfo(string workEmail) returns Employee|error {
+public isolated function fetchEmployeesBasicInfo(string workEmail) returns Employee|error? {
     string document = string `
         query employeeQuery($workEmail: String!) {
             employee(email: $workEmail) {

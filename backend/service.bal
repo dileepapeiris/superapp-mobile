@@ -23,7 +23,7 @@ import ballerina/http;
 import ballerina/log;
 
 configurable int maxHeaderSize = 16384; // 16KB header size for WSO2 Choreo support
-configurable string[] restrictedAppsForNonLk = [];
+configurable string[] restrictedAppsForNonLk = ?;
 configurable string lkLocation = "Sri Lanka";
 configurable string mobileAppReviewerEmail = ?; // App store reviewer email
 

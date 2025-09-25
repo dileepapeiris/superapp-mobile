@@ -168,7 +168,7 @@ isolated function updateAppConfigsByEmailQuery(string email, string configKey, s
 #
 # + emails - Array of user emails to retrieve tokens for
 # + startIndex - Start index for pagination
-# + return - Generated query to get FCM tokens from the device_tokens table.
+# + return - Generated query to get FCM tokens from the device_tokens table
 public isolated function getFcmTokensQuery(string[] emails, int startIndex) returns sql:ParameterizedQuery =>
     sql:queryConcat(`
         SELECT 
@@ -184,7 +184,7 @@ public isolated function getFcmTokensQuery(string[] emails, int startIndex) retu
 # Query to count FCM tokens for a given list of emails.
 #
 # + emails - Array of user emails to count tokens for
-# + return - Generated query to count FCM tokens from the device_tokens table.
+# + return - Generated query to count FCM tokens from the device_tokens table
 public isolated function countFcmTokensQuery(string[] emails) returns sql:ParameterizedQuery =>
     sql:queryConcat(`
         SELECT 
@@ -196,3 +196,24 @@ public isolated function countFcmTokensQuery(string[] emails) returns sql:Parame
         WHERE
             uc.email IN (`, sql:arrayFlattenQuery(emails), `) 
     `);
+
+# Query to insert an FCM token.
+#
+# + email - The user email used to fetch the corresponding `user_id` from `user_config`
+# + fcmToken - The FCM token to be inserted
+# + return - Generated query to insert the FCM token into `device_tokens`
+public isolated function addFcmTokenQuery(string email, string fcmToken) returns sql:ParameterizedQuery =>
+    `INSERT INTO device_tokens (user_id, fcm_token, created_at)
+     VALUES (
+        (SELECT id FROM user_config WHERE email = ${email}),
+        ${fcmToken},
+        CURRENT_TIMESTAMP
+     )`;
+
+# Query to delete an FCM token.
+#
+# + fcmToken - The FCM token to be deleted
+# + return - Generated query to remove the matching FCM token from the `device_tokens` table
+public isolated function deleteFcmTokenQuery(string fcmToken) returns sql:ParameterizedQuery =>
+    `DELETE FROM device_tokens WHERE fcm_token = ${fcmToken}`;
+

@@ -130,10 +130,10 @@ public isolated function updateAppConfigsByEmail(string email, AppConfig appConf
     returns ExecutionSuccessResult|error {
 
     sql:ParameterizedQuery query = updateAppConfigsByEmailQuery(
-        email,
-        appConfig.configKey,
-        appConfig.configValue.toJsonString(),
-        appConfig.isActive);
+            email,
+            appConfig.configKey,
+            appConfig.configValue.toJsonString(),
+            appConfig.isActive);
     sql:ExecutionResult result = check databaseClient->execute(query);
     return result.cloneWithType(ExecutionSuccessResult);
 }
@@ -142,7 +142,7 @@ public isolated function updateAppConfigsByEmail(string email, AppConfig appConf
 #
 # + emails - Array of user emails to retrieve tokens for
 # + startIndex - Start index for pagination
-# + return - FCMTokenResponse with tokens and pagination info, or an error.
+# + return - FCMTokenResponse with tokens and pagination info, or an error
 public isolated function getFcmTokens(string[] emails, int startIndex) returns FcmTokenResponse|error {
     CountRecord countRecord = check databaseClient->queryRow(countFcmTokensQuery(emails));
 
@@ -161,4 +161,33 @@ public isolated function getFcmTokens(string[] emails, int startIndex) returns F
         startIndex: startIndex,
         itemsPerPage: resultLimit
     };
+}
+
+# Inserts an FCM token into the `device_tokens` table for the given email.
+#
+# + email - The user email
+# + fcmToken - The FCM token to be stored
+# + return - `ExecutionSuccessResult` if the insertion succeeds, or `error` if it fails
+public isolated function addFcmToken(string email, string fcmToken) returns ExecutionSuccessResult|error {
+    sql:ExecutionResult result = check databaseClient->execute(addFcmTokenQuery(email, fcmToken));
+
+    if (result.affectedRowCount == 0) {
+        return error("Failed to add FCM token.");
+    }
+
+    return result.cloneWithType(ExecutionSuccessResult);
+}
+
+# Delete an FCM token from the database.
+#
+# + fcmToken - The FCM token to be deleted
+# + return - `ExecutionSuccessResult` if the deletion is successful, or `error` if the operation fails
+public isolated function deleteFcmToken(string fcmToken) returns ExecutionSuccessResult|error {
+    sql:ExecutionResult result = check databaseClient->execute(deleteFcmTokenQuery(fcmToken));
+
+    if result.affectedRowCount == 0 {
+        return error("No matching FCM token found to delete.");
+    }
+
+    return result.cloneWithType(ExecutionSuccessResult);
 }

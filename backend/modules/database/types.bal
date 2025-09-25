@@ -161,3 +161,10 @@ public type FcmTokenResponse record {|
     # Total items for per page
     int itemsPerPage;
 |};
+
+public type AppConfigResponse record {|
+    # Conflagration Value
+    string Value;
+    # Conflagration value Type
+    string Type;
+|};

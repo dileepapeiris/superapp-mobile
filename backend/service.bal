@@ -26,6 +26,7 @@ configurable int maxHeaderSize = 16384; // 16KB header size for WSO2 Choreo supp
 configurable string[] restrictedAppsForNonLk = ?;
 configurable string lkLocation = "Sri Lanka";
 configurable string mobileAppReviewerEmail = ?; // App store reviewer email
+configurable AppScope[] appScopes = [];
 
 @display {
     label: "SuperApp Mobile Service",
@@ -56,6 +57,53 @@ service http:InterceptableService / on new http:Listener(9090, config = {request
 
     function init() returns error? {
         log:printInfo("Super app mobile backend started.");
+    }
+
+    # Fetch application configuration details for the given user groups and config key.
+    #
+    # + ctx - Request context
+    # + groups - The list of user groups used to fetch default micro-app IDs.
+    # + ConfigKey - The configuration key used to retrieve the `isForceUpdate` status.
+    # + return - `AppConfigResponse` or `http:InternalServerError` if the operation fails.
+    resource function get app\-configs(http:RequestContext ctx, string[] groups, string ConfigKey)
+        returns AppConfigResponse|http:InternalServerError {
+
+        authorization:CustomJwtPayload|error userInfo = ctx.getWithType(authorization:HEADER_USER_INFO);
+        if userInfo is error {
+            return <http:InternalServerError>{
+                body: {
+                    message: ERR_MSG_USER_HEADER_NOT_FOUND
+                }
+            };
+        }
+
+        string[]|error defaultMicroAppIds = database:getMicroAppIdsByGroups(groups);
+        if defaultMicroAppIds is error {
+            string customError = "Failed to fetch defulat micro app IDs";
+            log:printError(customError, defaultMicroAppIds);
+            return <http:InternalServerError>{
+                body: {
+                    message: customError
+                }
+            };
+        }
+
+        boolean|error isForceUpdate = database:getAppConfigs(ConfigKey);
+        if isForceUpdate is error {
+            string customError = "Error occurred while retrieving isForceUpdate status!";
+            log:printError(customError, isForceUpdate);
+            return <http:InternalServerError>{
+                body: {
+                    message: customError
+                }
+            };
+        }
+
+        return {
+            isForceUpdate,
+            defaultMicroAppIds,
+            appScopes: appScopes
+        };
     }
 
     # Fetch user information of the logged in users.
@@ -256,7 +304,7 @@ service http:InterceptableService / on new http:Listener(9090, config = {request
     # + configuration - User's app configurations including downloaded microapps
     # + return - Created response or error
     resource function post users/app\-configs(http:RequestContext ctx,
-        database:AppConfig configuration) returns http:Created|http:InternalServerError|http:BadRequest {
+            database:AppConfig configuration) returns http:Created|http:InternalServerError|http:BadRequest {
 
         authorization:CustomJwtPayload|error userInfo = ctx.getWithType(authorization:HEADER_USER_INFO);
         if userInfo is error {
